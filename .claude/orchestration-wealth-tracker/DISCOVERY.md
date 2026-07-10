@@ -171,3 +171,7 @@ Réponse à la question de complétude : un agent d'exécution lisant uniquement
 
 **⚠️ Conflit budgétaire n°2 — Compte développeur Apple (impacte D25)** : confirmé qu'aucune alternative gratuite à TestFlight n'existe. Le chemin gratuit (install locale via câble/Xcode) expire tous les 7 jours et ne supporte pas les notifications push — incompatible avec un usage quotidien par l'épouse et avec les exigences D21/D26 (alertes push). **Recommandation de la recherche : payer les 99$/an dès que l'app doit être testée par les deux personnes**, en le distinguant de D3 (qui visait surtout les coûts récurrents à l'usage type Powens, pas un forfait plateforme fixe et prévisible). **Décision à reconfirmer avec l'utilisateur avant la Phase 5.**
 
+**D31 — Décision finale conflit Powens** : rester en sandbox pour l'instant. Toute la Phase 5-11 se construit et se teste en sandbox Powens (démo + connecteurs de test). La démarche commerciale/devis Powens n'est PAS engagée par l'agent — elle sera déclenchée par l'utilisateur explicitement quand il voudra brancher ses vraies données bancaires.
+
+**D32 — Décision finale conflit Apple Dev** : rester sur le chemin gratuit pour l'instant (build de dev local via câble/Xcode, réinstallation hebdomadaire). Utilisable pour les tests solo de l'utilisateur pendant le développement. Le passage au compte payant (99$/an) sera réévalué explicitement par l'utilisateur quand l'app sera prête pour un usage quotidien par son épouse. Android reste testable librement dès maintenant via sideload APK (gratuit, sans limite).
+
