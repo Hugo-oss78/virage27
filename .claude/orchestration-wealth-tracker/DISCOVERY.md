@@ -157,3 +157,17 @@ Pas de monitoring dédié (type Sentry) pour la v1 — projet personnel à petit
 
 Réponse à la question de complétude : un agent d'exécution lisant uniquement ce DISCOVERY.md peut prendre toutes les décisions d'implémentation de la v1 sans deviner, à l'exception des 4 points ci-dessus qui sont *volontairement* laissés à la recherche Phase 4 plutôt qu'à un choix arbitraire maintenant.
 
+---
+
+## Résolutions Phase 4 (recherche implémentation)
+
+**D16 résolu — Veracash** : aucune API publique/partenaire. Saisie manuelle uniquement (l'utilisateur entre la valorisation EUR depuis son relevé Veracash — la valeur inclut une prime propriétaire qui ne correspond pas à un cours spot générique, donc pas de recalcul automatique).
+
+**D17 résolu — Placement Direct** : aucune API self-service publique connue. À vérifier concrètement dans le catalogue de connecteurs Powens en Phase 5 (SCPI/assurance-vie/crowdfunding immobilier pourraient déjà être couverts par un connecteur Powens existant) ; saisie manuelle en fallback si absent du catalogue.
+
+**D15 résolu — Ledger** : ne jamais connecter le device physique. L'utilisateur exporte une seule fois ses adresses publiques (xpub pour BTC/UTXO, adresse publique réutilisable pour ETH/EVM) depuis Ledger Live, saisies une fois dans l'app puis interrogées en lecture seule via Blockstream Esplora (BTC, gratuit) et Etherscan API v2 multichain (EVM, gratuit avec clé). xpub stocké chiffré (risque de confidentialité même sans risque de vol de fonds).
+
+**⚠️ Conflit budgétaire n°1 — Powens (impacte D3/D7/D25)** : confirmé sales-gated, aucune offre gratuite/réduite en production. Le sandbox reste gratuit et illimité dans le temps pour tout le développement. **Décision à reconfirmer avec l'utilisateur avant la Phase 5** : rester en sandbox indéfiniment (démo uniquement) vs entamer une discussion commerciale Powens quand l'app sera prête pour les vraies données.
+
+**⚠️ Conflit budgétaire n°2 — Compte développeur Apple (impacte D25)** : confirmé qu'aucune alternative gratuite à TestFlight n'existe. Le chemin gratuit (install locale via câble/Xcode) expire tous les 7 jours et ne supporte pas les notifications push — incompatible avec un usage quotidien par l'épouse et avec les exigences D21/D26 (alertes push). **Recommandation de la recherche : payer les 99$/an dès que l'app doit être testée par les deux personnes**, en le distinguant de D3 (qui visait surtout les coûts récurrents à l'usage type Powens, pas un forfait plateforme fixe et prévisible). **Décision à reconfirmer avec l'utilisateur avant la Phase 5.**
+
