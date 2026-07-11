@@ -175,3 +175,5 @@ Réponse à la question de complétude : un agent d'exécution lisant uniquement
 
 **D32 — Décision finale conflit Apple Dev** : rester sur le chemin gratuit pour l'instant (build de dev local via câble/Xcode, réinstallation hebdomadaire). Utilisable pour les tests solo de l'utilisateur pendant le développement. Le passage au compte payant (99$/an) sera réévalué explicitement par l'utilisateur quand l'app sera prête pour un usage quotidien par son épouse. Android reste testable librement dès maintenant via sideload APK (gratuit, sans limite).
 
+**⚠️ Précision technique (recherche `testflight-android-sideload-deployment.md`)** : le chemin gratuit iOS ne permet **aucune notification push** (capability réservée aux comptes Apple Developer payants). Conséquence : tant que D32 reste "gratuit", D21/D26 fonctionnent en **bannière in-app seulement sur iOS** (Android reste normal, push fonctionnel dès maintenant). Point reconfirmé explicitement avec l'utilisateur (question dédiée posée en Phase 5) : il maintient le choix gratuit en connaissance de cause. Le passage au compte payant reste le déclencheur naturel pour activer le push iOS.
+
