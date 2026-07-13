@@ -15,7 +15,7 @@ L'utilisateur souhaite une vue unifiée et à jour de son patrimoine (banque, é
 
 ## 4. Objectifs
 
-1. Agréger tous les comptes (banque, épargne, trading, or, crypto) dans une seule application mobile.
+1. Centraliser tous les comptes (banque, épargne, trading, or, crypto) dans une seule application mobile, alimentés par scan de relevé/capture d'écran + extraction IA (banque/épargne/trading/or/Veracash/Placement Direct) et par API automatique (crypto Binance, cours or/crypto/bourse).
 2. Fournir des statistiques de performance par compte/catégorie d'actif (valorisation, évolution, rendement).
 3. Suivre les dépenses récurrentes et calculer une dépense moyenne par type/catégorie de dépense.
 4. Permettre un accès partagé et sécurisé à deux utilisateurs (couple) sur le même patrimoine.
@@ -25,12 +25,12 @@ L'utilisateur souhaite une vue unifiée et à jour de son patrimoine (banque, é
 ## 5. Périmètre (in scope v1)
 
 - App mobile (iOS/Android — cross-platform probable, à confirmer en Discovery).
-- Agrégation de comptes multi-catégories :
+- Alimentation des comptes multi-catégories **par scan de relevé/capture d'écran + extraction IA** (pivot v2, remplace l'agrégation Open Banking/DSP2 — voir §7.1) :
   - Comptes bancaires (comptes courants, épargne)
-  - Produits financiers / investissements (assurance-vie, PEA, comptes-titres, ETF, actions)
+  - Produits financiers / investissements (assurance-vie, PEA, comptes-titres, ETF, actions, SCPI/crowdfunding type Placement Direct)
   - Trading (positions actives, PnL)
-  - Or (métaux précieux — valorisation au cours du jour)
-  - Crypto (portefeuilles / exchanges)
+  - Or (métaux précieux, y compris Veracash — valorisation au cours du jour pour la quantité déclarée)
+  - Crypto (Binance via clé API en lecture seule ; wallet Ledger via adresses publiques on-chain)
 - Statistiques de performance par compte et par catégorie d'actif (valeur actuelle, évolution %, historique).
 - Vue patrimoine globale consolidée (net worth total, répartition par classe d'actif).
 - Suivi des dépenses récurrentes :
@@ -52,10 +52,13 @@ L'utilisateur souhaite une vue unifiée et à jour de son patrimoine (banque, é
 
 ## 7. Fonctionnalités clés
 
-### 7.1 Agrégation de comptes
-- Connexion aux comptes bancaires et financiers (probable via agrégateur type Bridge/Powens/Plaid — à valider en recherche)
-- Ajout manuel de positions (or physique, crypto si pas d'API exchange, etc.)
-- Rafraîchissement automatique des soldes/valorisations
+### 7.1 Alimentation des comptes — scan de relevés (pivot v2)
+> **Changement d'architecture (post-Discovery/Recherche)** : l'agrégation Open Banking/DSP2 (Powens) a été écartée — son tarif de production n'est jamais public (sur devis uniquement), ce qui entre en conflit avec le budget minimal souhaité (voir DISCOVERY D3/D31 et la recherche `powens-integration-implementation.md`). À la place, méthode unique et unifiée pour **toutes** les sources bancaires/financières (y compris Veracash et Placement Direct qui n'ont de toute façon aucune API) :
+- L'utilisateur (ou son épouse) prend en photo ou uploade un relevé/capture d'écran (PDF ou image) depuis son app bancaire/plateforme.
+- Extraction automatique par IA (vision) des soldes, positions et transactions du document.
+- Écran de validation/correction avant enregistrement (l'extraction n'est jamais appliquée silencieusement).
+- Cadence : à la demande, quand l'utilisateur scanne un nouveau relevé (plus de synchro automatique quotidienne pour les comptes bancaires — voir DISCOVERY D27 révisé). La vue patrimoine affiche la date du dernier relevé pris en compte par compte.
+- Crypto (Binance) et cours de l'or/crypto restent sur API automatique (pas concernés par le problème de coût Powens).
 
 ### 7.2 Statistiques de performance
 - Par compte : valeur actuelle, variation (jour/semaine/mois/année/depuis origine)
@@ -79,17 +82,18 @@ L'utilisateur souhaite une vue unifiée et à jour de son patrimoine (banque, é
 
 ## 8. Contraintes techniques connues
 
-- Application **mobile** (natif ou cross-platform — choix du stack à trancher en Discovery, ex: React Native/Expo vs Flutter vs natif)
-- Nécessite intégration avec des agrégateurs bancaires (DSP2/Open Banking en France/UE probable, vu le contexte "MHTL" et l'usage du français)
+- Application **mobile** (React Native + Expo, voir DISCOVERY D5)
+- Nécessite un backend capable d'appeler un modèle de vision (extraction de relevés/documents) — pas d'agrégateur bancaire DSP2 en v1 (pivot v2, voir §7.1)
 - Nécessite des APIs de cours (or, crypto, actions/ETF)
-- Sécurité renforcée requise (données financières sensibles, accès partagé à 2 personnes)
+- Sécurité renforcée requise (données financières sensibles, accès partagé à 2 personnes ; documents scannés contiennent des données bancaires sensibles à protéger au même niveau)
 
 ## 9. Risques / points d'attention
 
-- Agrégation bancaire : complexité réglementaire (DSP2), coût des agrégateurs (Bridge, Powens, Budget Insight, Plaid), disponibilité pour banques françaises.
-- Sécurité : mot de passe seul peut être jugé insuffisant pour données financières — 2FA à évaluer en Discovery.
-- Or physique : pas d'API bancaire, saisie manuelle + cours du jour à récupérer via API.
-- Crypto : diversité des wallets/exchanges à supporter (Discovery doit lister lesquels).
+- Extraction de relevés par IA : fiabilité jamais garantie à 100%, nécessite un écran de correction systématique ; qualité dépendante de la photo/scan fourni par l'utilisateur.
+- Fraîcheur des données : plus de synchro automatique quotidienne pour les comptes bancaires — le patrimoine affiché n'est à jour qu'au dernier relevé scanné, à bien communiquer dans l'UI (D27 révisé).
+- Sécurité : mot de passe seul peut être jugé insuffisant pour données financières — 2FA activée (D10). Documents scannés à stocker/traiter avec le même niveau de protection que les autres données financières.
+- Or physique / Veracash / Placement Direct : pas d'API, valorisation via scan de relevé comme les autres comptes (ou saisie manuelle en dernier recours).
+- Crypto : Binance via clé API lecture seule ; Ledger via adresses publiques on-chain uniquement (jamais le device).
 - Partage de compte à 2 : modèle de données doit distinguer "utilisateur" (identité/login) de "foyer patrimonial" (données partagées).
 
 ## 10. Métriques de succès (à affiner en Discovery)
