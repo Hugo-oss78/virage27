@@ -346,9 +346,12 @@ export default function Virage27() {
   }
 
   function deleteOption(id) {
+    const opt = options.find((o) => o.id === id);
+    if (opt && !window.confirm(`Supprimer "${opt.nom}" ? Cette action est définitive.`)) return;
     const next = options.filter((o) => o.id !== id);
     setOptions(next);
     persist(next, weights);
+    if (editingId === id) resetForm();
   }
 
   function updateWeight(key, val) {
@@ -733,6 +736,14 @@ export default function Virage27() {
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
                       {o.lieu && <div style={{ fontSize: 11, color: T.teal, marginTop: 1 }}>{o.lieu}</div>}
                       <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>Score {weightedScore(o).toFixed(1)}/5</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => startEdit(o)} style={{ background: "none", border: "none", color: T.teal, cursor: "pointer" }} aria-label={`Modifier ${o.nom}`}>
+                        <Pencil size={16} />
+                      </button>
+                      <button onClick={() => deleteOption(o.id)} style={{ background: "none", border: "none", color: T.coral, cursor: "pointer" }} aria-label={`Supprimer ${o.nom}`}>
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </div>
                 ))}
