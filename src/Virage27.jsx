@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 // ---------- design tokens ----------
-const T = {
+export const T = {
   bg: "#0B2027",
   panel: "#123138",
   panel2: "#17414A",
