@@ -13,6 +13,8 @@ import {
   Save,
   Clipboard,
   ClipboardPaste,
+  Archive,
+  ArchiveRestore,
 } from "lucide-react";
 
 // ---------- design tokens ----------
@@ -72,6 +74,7 @@ const seedOptions = [
     notes: "Coût, durée exacte et centre à confirmer — à compléter.",
     scores: { pertinence: 3, financiere: 3, emotionnelle: 3, revenus: 3 },
     research: null,
+    archived: false,
   },
 ];
 
@@ -337,6 +340,7 @@ export default function Virage27() {
         notes: form.notes,
         scores: form.scores,
         research: null,
+        archived: false,
       };
       next = [...options, newOpt];
     }
@@ -347,8 +351,15 @@ export default function Virage27() {
 
   function deleteOption(id) {
     const opt = options.find((o) => o.id === id);
-    if (opt && !window.confirm(`Supprimer "${opt.nom}" ? Cette action est définitive.`)) return;
+    if (opt && !window.confirm(`Supprimer définitivement "${opt.nom}" ? Cette action est irréversible — archive-la plutôt si tu n'es pas sûre.`)) return;
     const next = options.filter((o) => o.id !== id);
+    setOptions(next);
+    persist(next, weights);
+    if (editingId === id) resetForm();
+  }
+
+  function toggleArchive(id) {
+    const next = options.map((o) => (o.id === id ? { ...o, archived: !o.archived } : o));
     setOptions(next);
     persist(next, weights);
     if (editingId === id) resetForm();
@@ -418,8 +429,11 @@ export default function Virage27() {
     persist(options, weights);
   }
 
-  const ranked = [...options].sort((a, b) => weightedScore(b) - weightedScore(a));
-  const maxHorizon = Math.max(12, ...options.map((o) => o.debutOffset + o.dureeMois), 1);
+  const activeOptions = options.filter((o) => !o.archived);
+  const archivedOptions = options.filter((o) => o.archived);
+  const ranked = [...activeOptions].sort((a, b) => weightedScore(b) - weightedScore(a));
+  const maxHorizon = Math.max(12, ...activeOptions.map((o) => o.debutOffset + o.dureeMois), 1);
+  const hasResearch = (o) => !!(o.research && (o.research.resume || o.research.couts || o.research.debouches || o.research.points_attention));
 
   return (
     <div
@@ -565,10 +579,10 @@ export default function Virage27() {
               {editingId ? "Enregistrer les modifications" : "Ajouter au carnet"}
             </button>
 
-            {options.length > 0 && (
+            {activeOptions.length > 0 && (
               <div style={{ marginTop: 28 }}>
-                <p style={{ fontSize: 13, color: T.muted, marginBottom: 10 }}>Options déjà notées ({options.length})</p>
-                {options.map((o) => (
+                <p style={{ fontSize: 13, color: T.muted, marginBottom: 10 }}>Options déjà notées ({activeOptions.length})</p>
+                {activeOptions.map((o) => (
                   <div key={o.id} className="v27-card" style={{ padding: 14, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
@@ -578,10 +592,13 @@ export default function Virage27() {
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                      <button onClick={() => startEdit(o)} style={{ background: "none", border: "none", color: T.teal, cursor: "pointer" }}>
+                      <button onClick={() => startEdit(o)} style={{ background: "none", border: "none", color: T.teal, cursor: "pointer" }} aria-label={`Modifier ${o.nom}`}>
                         <Pencil size={16} />
                       </button>
-                      <button onClick={() => deleteOption(o.id)} style={{ background: "none", border: "none", color: T.coral, cursor: "pointer" }}>
+                      <button onClick={() => toggleArchive(o.id)} style={{ background: "none", border: "none", color: T.muted, cursor: "pointer" }} aria-label={`Archiver ${o.nom}`}>
+                        <Archive size={16} />
+                      </button>
+                      <button onClick={() => deleteOption(o.id)} style={{ background: "none", border: "none", color: T.coral, cursor: "pointer" }} aria-label={`Supprimer ${o.nom}`}>
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -589,12 +606,17 @@ export default function Virage27() {
                 ))}
               </div>
             )}
+            {archivedOptions.length > 0 && (
+              <p style={{ fontSize: 12, color: T.faint, marginTop: 12 }}>
+                {archivedOptions.length} option{archivedOptions.length > 1 ? "s" : ""} archivée{archivedOptions.length > 1 ? "s" : ""} — visibles en bas de l'onglet "Classement".
+              </p>
+            )}
           </div>
         )}
 
         {tab === "research" && (
           <div>
-            {options.length === 0 && <p style={{ color: T.muted, fontSize: 14 }}>Ajoute d'abord une option dans l'onglet "Ajouter".</p>}
+            {activeOptions.length === 0 && <p style={{ color: T.muted, fontSize: 14 }}>Ajoute d'abord une option dans l'onglet "Ajouter".</p>}
             <div style={{ padding: "10px 12px", background: T.panel2, border: `1px solid ${T.line}`, borderRadius: 6, fontSize: 12, color: T.muted, marginBottom: 16, display: "flex", gap: 8 }}>
               <AlertTriangle size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
               <span>
@@ -602,7 +624,7 @@ export default function Virage27() {
                 Claude ou ChatGPT, puis reviens coller la réponse ici. À vérifier ensuite auprès des organismes concernés avant toute décision engageante.
               </span>
             </div>
-            {options.map((o) => {
+            {activeOptions.map((o) => {
               const r = o.research || emptyResearch;
               return (
                 <div key={o.id} className="v27-card" style={{ padding: 16, marginBottom: 14 }}>
@@ -704,8 +726,13 @@ export default function Virage27() {
 
         {tab === "plan" && (
           <div>
-            {options.length === 0 && <p style={{ color: T.muted, fontSize: 14 }}>Ajoute d'abord une option dans l'onglet "Ajouter".</p>}
-            {options.length > 0 && (
+            {activeOptions.length === 0 && archivedOptions.length === 0 && (
+              <p style={{ color: T.muted, fontSize: 14 }}>Ajoute d'abord une option dans l'onglet "Ajouter".</p>
+            )}
+            {activeOptions.length === 0 && archivedOptions.length > 0 && (
+              <p style={{ color: T.muted, fontSize: 14 }}>Toutes tes options sont archivées — restaure-en une pour voir le classement.</p>
+            )}
+            {activeOptions.length > 0 && (
               <>
                 <div className="v27-card" style={{ padding: 16, marginBottom: 18 }}>
                   <p style={{ fontSize: 13, color: T.muted, margin: "0 0 12px" }}>Pondère ce qui compte le plus pour toi :</p>
@@ -733,13 +760,32 @@ export default function Virage27() {
                   <div key={o.id} className="v27-card" style={{ padding: 14, marginBottom: 10, display: "flex", alignItems: "center", gap: 12 }}>
                     <div className="v27-title" style={{ fontSize: 20, color: i === 0 ? T.amber : T.faint, width: 24, textAlign: "center" }}>{i + 1}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                        {!hasResearch(o) && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              color: T.amber,
+                              border: `1px solid ${T.amber}`,
+                              borderRadius: 999,
+                              padding: "1px 7px",
+                              flexShrink: 0,
+                            }}
+                          >
+                            à vérifier
+                          </span>
+                        )}
+                      </div>
                       {o.lieu && <div style={{ fontSize: 11, color: T.teal, marginTop: 1 }}>{o.lieu}</div>}
                       <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>Score {weightedScore(o).toFixed(1)}/5</div>
                     </div>
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                       <button onClick={() => startEdit(o)} style={{ background: "none", border: "none", color: T.teal, cursor: "pointer" }} aria-label={`Modifier ${o.nom}`}>
                         <Pencil size={16} />
+                      </button>
+                      <button onClick={() => toggleArchive(o.id)} style={{ background: "none", border: "none", color: T.muted, cursor: "pointer" }} aria-label={`Archiver ${o.nom}`}>
+                        <Archive size={16} />
                       </button>
                       <button onClick={() => deleteOption(o.id)} style={{ background: "none", border: "none", color: T.coral, cursor: "pointer" }} aria-label={`Supprimer ${o.nom}`}>
                         <Trash2 size={16} />
@@ -750,7 +796,7 @@ export default function Virage27() {
 
                 <p style={{ fontSize: 13, color: T.muted, margin: "24px 0 10px" }}>Chronologie</p>
                 <div className="v27-card" style={{ padding: 16 }}>
-                  {options
+                  {activeOptions
                     .slice()
                     .sort((a, b) => a.debutOffset - b.debutOffset)
                     .map((o) => {
@@ -777,6 +823,28 @@ export default function Virage27() {
                   <div style={{ fontSize: 10, color: T.faint, marginTop: 4 }}>Échelle : 0 à {maxHorizon} mois à partir d'aujourd'hui</div>
                 </div>
               </>
+            )}
+
+            {archivedOptions.length > 0 && (
+              <div style={{ marginTop: 28 }}>
+                <p style={{ fontSize: 13, color: T.muted, marginBottom: 10 }}>Écartées ({archivedOptions.length})</p>
+                {archivedOptions.map((o) => (
+                  <div key={o.id} className="v27-card" style={{ padding: 14, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, opacity: 0.7 }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                      {o.lieu && <div style={{ fontSize: 11, color: T.teal, marginTop: 1 }}>{o.lieu}</div>}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => toggleArchive(o.id)} style={{ background: "none", border: "none", color: T.sage, cursor: "pointer" }} aria-label={`Restaurer ${o.nom}`}>
+                        <ArchiveRestore size={16} />
+                      </button>
+                      <button onClick={() => deleteOption(o.id)} style={{ background: "none", border: "none", color: T.coral, cursor: "pointer" }} aria-label={`Supprimer ${o.nom}`}>
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}
