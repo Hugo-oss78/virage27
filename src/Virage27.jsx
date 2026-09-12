@@ -15,6 +15,11 @@ import {
   ClipboardPaste,
   Archive,
   ArchiveRestore,
+  Bell,
+  CalendarCheck,
+  CalendarX,
+  CalendarClock,
+  RotateCcw,
 } from "lucide-react";
 
 // ---------- design tokens ----------
@@ -42,6 +47,13 @@ const CRITERIA = [
   { key: "revenus", label: "Qualité / revenus" },
 ];
 
+const STATUS_STYLE = {
+  active: { color: T.teal, label: null },
+  done: { color: T.sage, label: "réalisée" },
+  aborted: { color: T.coral, label: "non atteignable" },
+  archived: { color: T.faint, label: "archivée" },
+};
+
 const emptyForm = {
   nom: "",
   lieu: "",
@@ -53,6 +65,7 @@ const emptyForm = {
   debouches: "",
   notes: "",
   scores: { pertinence: 3, financiere: 3, emotionnelle: 3, revenus: 3 },
+  reminders: [],
 };
 
 const emptyResearch = { resume: "", couts: "", debouches: "", points_attention: "", sources: "" };
@@ -74,12 +87,24 @@ const seedOptions = [
     notes: "Coût, durée exacte et centre à confirmer — à compléter.",
     scores: { pertinence: 3, financiere: 3, emotionnelle: 3, revenus: 3 },
     research: null,
-    archived: false,
+    status: "active",
+    createdAt: Date.now(),
+    reminders: [],
   },
 ];
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
+}
+
+// remet à niveau les options sauvegardées avant l'ajout du statut/des rappels/des dates de création
+function migrateOption(o) {
+  return {
+    ...o,
+    status: o.status || (o.archived ? "archived" : "active"),
+    createdAt: o.createdAt || Date.now(),
+    reminders: o.reminders || [],
+  };
 }
 
 function monthsFromToday(dateStr) {
@@ -91,10 +116,48 @@ function monthsFromToday(dateStr) {
   return Math.max(0, Math.round(diffDays / 30.44));
 }
 
-function formatDateShort(dateStr) {
+function addMonths(date, months) {
+  const d = new Date(date.getTime());
+  d.setMonth(d.getMonth() + Number(months || 0));
+  return d;
+}
+
+function parseDate(dateStr) {
   if (!dateStr) return null;
   const d = new Date(dateStr + "T00:00:00");
-  if (Number.isNaN(d.getTime())) return null;
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+// date de début réelle d'une option : la date précise si elle est connue,
+// sinon la date de création + le nombre de mois d'attente indiqué
+function getStartDate(o) {
+  return parseDate(o.dateDebut) || addMonths(new Date(o.createdAt || Date.now()), o.debutOffset || 0);
+}
+
+function getEndDate(o) {
+  return addMonths(getStartDate(o), o.dureeMois || 1);
+}
+
+function daysBetween(a, b) {
+  return Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function isOverdue(o, today) {
+  return o.status === "active" && getEndDate(o).getTime() < today.getTime();
+}
+
+function formatDateShort(dateStr) {
+  const d = parseDate(dateStr);
+  return d ? formatDateObj(d) : null;
+}
+
+function formatDateObj(d) {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
 }
 
@@ -183,15 +246,19 @@ function Tab({ active, onClick, icon: Icon, children }) {
         borderBottom: active ? `2px solid ${T.amber}` : `2px solid transparent`,
         color: active ? T.text : T.faint,
         fontFamily: "'IBM Plex Sans', sans-serif",
-        fontSize: 12,
+        fontSize: 11,
         cursor: "pointer",
         transition: "color 0.15s",
       }}
     >
-      <Icon size={18} strokeWidth={1.75} />
+      <Icon size={17} strokeWidth={1.75} />
       {children}
     </button>
   );
+}
+
+function ghostButtonStyle(color) {
+  return { background: "none", border: "none", color, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, padding: 0 };
 }
 
 function loadFromLocalStorage() {
@@ -217,7 +284,8 @@ function saveToLocalStorage(value) {
 export default function Virage27() {
   const [options, setOptions] = useState(() => {
     const saved = loadFromLocalStorage();
-    return saved ? saved.options || [] : seedOptions;
+    const raw = saved ? saved.options || [] : seedOptions;
+    return raw.map(migrateOption);
   });
   const [weights, setWeights] = useState(() => {
     const saved = loadFromLocalStorage();
@@ -225,6 +293,8 @@ export default function Virage27() {
   });
   const [tab, setTab] = useState("add");
   const [form, setForm] = useState(emptyForm);
+  const [newReminderLabel, setNewReminderLabel] = useState("");
+  const [newReminderDate, setNewReminderDate] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [saveStatus, setSaveStatus] = useState("idle"); // idle | saved | error
@@ -234,6 +304,8 @@ export default function Virage27() {
   const [importText, setImportText] = useState("");
   const [importStatus, setImportStatus] = useState(null);
   const [backupCopyStatus, setBackupCopyStatus] = useState(null);
+  const [postponeId, setPostponeId] = useState(null);
+  const [postponeDate, setPostponeDate] = useState("");
 
   const persist = useCallback((nextOptions, nextWeights) => {
     const result = saveToLocalStorage({ options: nextOptions, weights: nextWeights });
@@ -247,7 +319,7 @@ export default function Virage27() {
   }, []);
 
   useEffect(() => {
-    // sauvegarde initiale si on démarre avec les options d'exemple
+    // sauvegarde initiale si on démarre avec les options d'exemple / une migration
     persist(options, weights);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -267,7 +339,7 @@ export default function Virage27() {
   function loadBackup() {
     try {
       const parsed = JSON.parse(importText);
-      const nextOptions = parsed.options || [];
+      const nextOptions = (parsed.options || []).map(migrateOption);
       const nextWeights = parsed.weights || weights;
       setOptions(nextOptions);
       setWeights(nextWeights);
@@ -281,6 +353,8 @@ export default function Virage27() {
   function resetForm() {
     setForm(emptyForm);
     setEditingId(null);
+    setNewReminderLabel("");
+    setNewReminderDate("");
   }
 
   function startEdit(opt) {
@@ -295,9 +369,21 @@ export default function Virage27() {
       debouches: opt.debouches || "",
       notes: opt.notes || "",
       scores: { ...opt.scores },
+      reminders: (opt.reminders || []).map((r) => ({ ...r })),
     });
     setEditingId(opt.id);
     setTab("add");
+  }
+
+  function addReminderToForm() {
+    if (!newReminderLabel.trim() || !newReminderDate) return;
+    setForm((f) => ({ ...f, reminders: [...f.reminders, { id: uid(), label: newReminderLabel.trim(), date: newReminderDate, done: false }] }));
+    setNewReminderLabel("");
+    setNewReminderDate("");
+  }
+
+  function removeReminderFromForm(id) {
+    setForm((f) => ({ ...f, reminders: f.reminders.filter((r) => r.id !== id) }));
   }
 
   function saveOption() {
@@ -323,6 +409,7 @@ export default function Virage27() {
               debouches: form.debouches,
               notes: form.notes,
               scores: form.scores,
+              reminders: form.reminders,
             }
           : o
       );
@@ -339,8 +426,10 @@ export default function Virage27() {
         debouches: form.debouches,
         notes: form.notes,
         scores: form.scores,
+        reminders: form.reminders,
         research: null,
-        archived: false,
+        status: "active",
+        createdAt: Date.now(),
       };
       next = [...options, newOpt];
     }
@@ -358,11 +447,35 @@ export default function Virage27() {
     if (editingId === id) resetForm();
   }
 
-  function toggleArchive(id) {
-    const next = options.map((o) => (o.id === id ? { ...o, archived: !o.archived } : o));
+  function setStatus(id, status) {
+    const next = options.map((o) => (o.id === id ? { ...o, status } : o));
     setOptions(next);
     persist(next, weights);
     if (editingId === id) resetForm();
+    if (postponeId === id) setPostponeId(null);
+  }
+
+  function postponeOption(id, newDate) {
+    if (!newDate) return;
+    const next = options.map((o) => (o.id === id ? { ...o, dateDebut: newDate, debutOffset: 0, status: "active" } : o));
+    setOptions(next);
+    persist(next, weights);
+    setPostponeId(null);
+    setPostponeDate("");
+  }
+
+  function toggleReminder(optionId, reminderId) {
+    const next = options.map((o) =>
+      o.id === optionId ? { ...o, reminders: (o.reminders || []).map((r) => (r.id === reminderId ? { ...r, done: !r.done } : r)) } : o
+    );
+    setOptions(next);
+    persist(next, weights);
+  }
+
+  function deleteReminder(optionId, reminderId) {
+    const next = options.map((o) => (o.id === optionId ? { ...o, reminders: (o.reminders || []).filter((r) => r.id !== reminderId) } : o));
+    setOptions(next);
+    persist(next, weights);
   }
 
   function updateWeight(key, val) {
@@ -429,11 +542,33 @@ export default function Virage27() {
     persist(options, weights);
   }
 
-  const activeOptions = options.filter((o) => !o.archived);
-  const archivedOptions = options.filter((o) => o.archived);
+  const today = startOfToday();
+  const activeOptions = options.filter((o) => o.status === "active");
+  const archivedOptions = options.filter((o) => o.status === "archived");
+  const doneOptions = options.filter((o) => o.status === "done");
+  const abortedOptions = options.filter((o) => o.status === "aborted");
+  const overdueOptions = activeOptions.filter((o) => isOverdue(o, today));
   const ranked = [...activeOptions].sort((a, b) => weightedScore(b) - weightedScore(a));
-  const maxHorizon = Math.max(12, ...activeOptions.map((o) => o.debutOffset + o.dureeMois), 1);
   const hasResearch = (o) => !!(o.research && (o.research.resume || o.research.couts || o.research.debouches || o.research.points_attention));
+
+  // chronologie : toutes les options (même passées / résolues) sur un axe de dates réelles
+  const timelineOptions = [...options].sort((a, b) => getStartDate(a) - getStartDate(b));
+  let rangeStart = today;
+  let rangeEnd = addMonths(today, 12);
+  if (timelineOptions.length > 0) {
+    const starts = timelineOptions.map(getStartDate).map((d) => d.getTime());
+    const ends = timelineOptions.map(getEndDate).map((d) => d.getTime());
+    rangeStart = addMonths(new Date(Math.min(...starts, today.getTime())), -1);
+    rangeEnd = addMonths(new Date(Math.max(...ends, today.getTime())), 1);
+  }
+  const rangeTotalMs = Math.max(rangeEnd.getTime() - rangeStart.getTime(), 1);
+  const todayLeftPct = ((today.getTime() - rangeStart.getTime()) / rangeTotalMs) * 100;
+
+  // rappels de toutes les options actives, triés par date
+  const allReminders = activeOptions
+    .flatMap((o) => (o.reminders || []).map((r) => ({ ...r, optionId: o.id, optionName: o.nom })))
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const upcomingReminderCount = allReminders.filter((r) => !r.done && parseDate(r.date) && parseDate(r.date).getTime() <= addMonths(today, 1).getTime()).length;
 
   return (
     <div
@@ -496,6 +631,9 @@ export default function Virage27() {
         <Tab active={tab === "add"} onClick={() => setTab("add")} icon={Plus}>Ajouter</Tab>
         <Tab active={tab === "research"} onClick={() => setTab("research")} icon={Search}>Recherche</Tab>
         <Tab active={tab === "plan"} onClick={() => setTab("plan")} icon={ListOrdered}>Classement</Tab>
+        <Tab active={tab === "reminders"} onClick={() => setTab("reminders")} icon={Bell}>
+          Rappels{upcomingReminderCount > 0 ? ` (${upcomingReminderCount})` : ""}
+        </Tab>
         <Tab active={tab === "backup"} onClick={() => setTab("backup")} icon={Save}>Sauvegarde</Tab>
       </div>
 
@@ -555,6 +693,54 @@ export default function Virage27() {
               ))}
             </div>
 
+            <div className="v27-card" style={{ padding: 16, marginBottom: 16 }}>
+              <p style={{ fontSize: 13, color: T.muted, margin: "0 0 4px", fontWeight: 600 }}>Rappels / dates butoires</p>
+              <p style={{ fontSize: 12, color: T.faint, margin: "0 0 12px" }}>Inscription, acompte, dossier à rendre... — retrouvables dans l'onglet "Rappels".</p>
+              {form.reminders.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  {form.reminders.map((r) => (
+                    <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${T.line}` }}>
+                      <div>
+                        <div style={{ fontSize: 13 }}>{r.label}</div>
+                        <div style={{ fontSize: 11, color: T.muted }}>{formatDateShort(r.date)}</div>
+                      </div>
+                      <button onClick={() => removeReminderFromForm(r.id)} style={ghostButtonStyle(T.coral)} aria-label={`Retirer le rappel ${r.label}`}>
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <TextInput
+                  value={newReminderLabel}
+                  onChange={(e) => setNewReminderLabel(e.target.value)}
+                  placeholder="ex : Inscription avant le..."
+                  style={{ flex: 2 }}
+                />
+                <TextInput type="date" value={newReminderDate} onChange={(e) => setNewReminderDate(e.target.value)} style={{ flex: 1 }} />
+              </div>
+              <button
+                onClick={addReminderToForm}
+                disabled={!newReminderLabel.trim() || !newReminderDate}
+                style={{
+                  background: "transparent",
+                  border: `1px solid ${T.teal}`,
+                  color: T.teal,
+                  borderRadius: 5,
+                  padding: "6px 10px",
+                  fontSize: 12,
+                  cursor: newReminderLabel.trim() && newReminderDate ? "pointer" : "default",
+                  opacity: newReminderLabel.trim() && newReminderDate ? 1 : 0.5,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <Plus size={13} /> Ajouter ce rappel
+              </button>
+            </div>
+
             <Field label="Notes libres">
               <TextArea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Tout ce qui ne rentre pas ailleurs" />
             </Field>
@@ -595,7 +781,7 @@ export default function Virage27() {
                       <button onClick={() => startEdit(o)} style={{ background: "none", border: "none", color: T.teal, cursor: "pointer" }} aria-label={`Modifier ${o.nom}`}>
                         <Pencil size={16} />
                       </button>
-                      <button onClick={() => toggleArchive(o.id)} style={{ background: "none", border: "none", color: T.muted, cursor: "pointer" }} aria-label={`Archiver ${o.nom}`}>
+                      <button onClick={() => setStatus(o.id, "archived")} style={{ background: "none", border: "none", color: T.muted, cursor: "pointer" }} aria-label={`Archiver ${o.nom}`}>
                         <Archive size={16} />
                       </button>
                       <button onClick={() => deleteOption(o.id)} style={{ background: "none", border: "none", color: T.coral, cursor: "pointer" }} aria-label={`Supprimer ${o.nom}`}>
@@ -606,9 +792,9 @@ export default function Virage27() {
                 ))}
               </div>
             )}
-            {archivedOptions.length > 0 && (
+            {(archivedOptions.length > 0 || doneOptions.length > 0 || abortedOptions.length > 0) && (
               <p style={{ fontSize: 12, color: T.faint, marginTop: 12 }}>
-                {archivedOptions.length} option{archivedOptions.length > 1 ? "s" : ""} archivée{archivedOptions.length > 1 ? "s" : ""} — visibles en bas de l'onglet "Classement".
+                {archivedOptions.length + doneOptions.length + abortedOptions.length} option(s) archivée(s), réalisée(s) ou non atteignable(s) — visibles en bas de l'onglet "Classement".
               </p>
             )}
           </div>
@@ -726,12 +912,70 @@ export default function Virage27() {
 
         {tab === "plan" && (
           <div>
-            {activeOptions.length === 0 && archivedOptions.length === 0 && (
-              <p style={{ color: T.muted, fontSize: 14 }}>Ajoute d'abord une option dans l'onglet "Ajouter".</p>
+            {options.length === 0 && <p style={{ color: T.muted, fontSize: 14 }}>Ajoute d'abord une option dans l'onglet "Ajouter".</p>}
+
+            {overdueOptions.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <p style={{ fontSize: 13, color: T.amber, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                  <AlertTriangle size={14} /> Échéance dépassée ({overdueOptions.length})
+                </p>
+                {overdueOptions.map((o) => {
+                  const overdueDays = daysBetween(getEndDate(o), today);
+                  return (
+                    <div key={o.id} className="v27-card" style={{ padding: 14, marginBottom: 10, border: `1px solid ${T.amber}` }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                      <div style={{ fontSize: 12, color: T.muted, marginTop: 2, marginBottom: 10 }}>
+                        Échéance passée depuis {overdueDays} jour{overdueDays > 1 ? "s" : ""} ({formatDateObj(getEndDate(o))})
+                      </div>
+                      <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                        <button onClick={() => setStatus(o.id, "done")} style={{ ...ghostButtonStyle(T.sage), fontSize: 12 }}>
+                          <CalendarCheck size={14} /> Réalisée
+                        </button>
+                        <button onClick={() => setStatus(o.id, "aborted")} style={{ ...ghostButtonStyle(T.coral), fontSize: 12 }}>
+                          <CalendarX size={14} /> Non atteignable
+                        </button>
+                        <button
+                          onClick={() => {
+                            setPostponeId(postponeId === o.id ? null : o.id);
+                            setPostponeDate(o.dateDebut || "");
+                          }}
+                          style={{ ...ghostButtonStyle(T.amber), fontSize: 12 }}
+                        >
+                          <CalendarClock size={14} /> Reporter
+                        </button>
+                      </div>
+                      {postponeId === o.id && (
+                        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                          <TextInput type="date" value={postponeDate} onChange={(e) => setPostponeDate(e.target.value)} style={{ flex: 1 }} />
+                          <button
+                            onClick={() => postponeOption(o.id, postponeDate)}
+                            disabled={!postponeDate}
+                            style={{
+                              background: T.amber,
+                              color: T.bg,
+                              border: "none",
+                              borderRadius: 5,
+                              padding: "0 14px",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: postponeDate ? "pointer" : "default",
+                              opacity: postponeDate ? 1 : 0.5,
+                            }}
+                          >
+                            Valider
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
-            {activeOptions.length === 0 && archivedOptions.length > 0 && (
-              <p style={{ color: T.muted, fontSize: 14 }}>Toutes tes options sont archivées — restaure-en une pour voir le classement.</p>
+
+            {activeOptions.length === 0 && options.length > 0 && (
+              <p style={{ color: T.muted, fontSize: 14, marginBottom: 20 }}>Aucune option active pour le moment — regarde la chronologie et les listes ci-dessous.</p>
             )}
+
             {activeOptions.length > 0 && (
               <>
                 <div className="v27-card" style={{ padding: 16, marginBottom: 18 }}>
@@ -784,7 +1028,7 @@ export default function Virage27() {
                       <button onClick={() => startEdit(o)} style={{ background: "none", border: "none", color: T.teal, cursor: "pointer" }} aria-label={`Modifier ${o.nom}`}>
                         <Pencil size={16} />
                       </button>
-                      <button onClick={() => toggleArchive(o.id)} style={{ background: "none", border: "none", color: T.muted, cursor: "pointer" }} aria-label={`Archiver ${o.nom}`}>
+                      <button onClick={() => setStatus(o.id, "archived")} style={{ background: "none", border: "none", color: T.muted, cursor: "pointer" }} aria-label={`Archiver ${o.nom}`}>
                         <Archive size={16} />
                       </button>
                       <button onClick={() => deleteOption(o.id)} style={{ background: "none", border: "none", color: T.coral, cursor: "pointer" }} aria-label={`Supprimer ${o.nom}`}>
@@ -793,18 +1037,32 @@ export default function Virage27() {
                     </div>
                   </div>
                 ))}
+              </>
+            )}
 
+            {options.length > 0 && (
+              <>
                 <p style={{ fontSize: 13, color: T.muted, margin: "24px 0 10px" }}>Chronologie</p>
-                <div className="v27-card" style={{ padding: 16 }}>
-                  {activeOptions
-                    .slice()
-                    .sort((a, b) => a.debutOffset - b.debutOffset)
-                    .map((o) => {
-                      const leftPct = (o.debutOffset / maxHorizon) * 100;
-                      const widthPct = Math.max((o.dureeMois / maxHorizon) * 100, 6);
+                <div className="v27-card" style={{ padding: "26px 16px 16px" }}>
+                  <div style={{ position: "relative" }}>
+                    <div style={{ position: "absolute", top: -12, bottom: -6, left: `${todayLeftPct}%`, width: 1, background: T.amber, opacity: 0.6 }} />
+                    <div style={{ position: "absolute", top: -26, left: `${todayLeftPct}%`, transform: "translateX(-50%)", fontSize: 9, color: T.amber, whiteSpace: "nowrap" }}>
+                      aujourd'hui
+                    </div>
+                    {timelineOptions.map((o) => {
+                      const start = getStartDate(o);
+                      const end = getEndDate(o);
+                      const leftPct = ((start.getTime() - rangeStart.getTime()) / rangeTotalMs) * 100;
+                      const widthPct = Math.max(((end.getTime() - start.getTime()) / rangeTotalMs) * 100, 3);
+                      const style = STATUS_STYLE[o.status] || STATUS_STYLE.active;
                       return (
                         <div key={o.id} style={{ marginBottom: 14 }}>
-                          <div style={{ fontSize: 12, color: T.muted, marginBottom: 4 }}>{o.nom}</div>
+                          <div style={{ fontSize: 12, color: T.muted, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ opacity: o.status === "active" ? 1 : 0.6 }}>{o.nom}</span>
+                            {style.label && (
+                              <span style={{ fontSize: 9, color: style.color, border: `1px solid ${style.color}`, borderRadius: 999, padding: "0 6px" }}>{style.label}</span>
+                            )}
+                          </div>
                           <div style={{ position: "relative", height: 18, background: T.panel2, borderRadius: 4 }}>
                             <div
                               style={{
@@ -812,7 +1070,8 @@ export default function Virage27() {
                                 left: `${leftPct}%`,
                                 width: `${widthPct}%`,
                                 height: "100%",
-                                background: T.teal,
+                                background: style.color,
+                                opacity: o.status === "active" ? 1 : 0.55,
                                 borderRadius: 4,
                               }}
                             />
@@ -820,7 +1079,10 @@ export default function Virage27() {
                         </div>
                       );
                     })}
-                  <div style={{ fontSize: 10, color: T.faint, marginTop: 4 }}>Échelle : 0 à {maxHorizon} mois à partir d'aujourd'hui</div>
+                  </div>
+                  <div style={{ fontSize: 10, color: T.faint, marginTop: 4 }}>
+                    Du {formatDateObj(rangeStart)} au {formatDateObj(rangeEnd)}
+                  </div>
                 </div>
               </>
             )}
@@ -835,7 +1097,7 @@ export default function Virage27() {
                       {o.lieu && <div style={{ fontSize: 11, color: T.teal, marginTop: 1 }}>{o.lieu}</div>}
                     </div>
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                      <button onClick={() => toggleArchive(o.id)} style={{ background: "none", border: "none", color: T.sage, cursor: "pointer" }} aria-label={`Restaurer ${o.nom}`}>
+                      <button onClick={() => setStatus(o.id, "active")} style={{ background: "none", border: "none", color: T.sage, cursor: "pointer" }} aria-label={`Restaurer ${o.nom}`}>
                         <ArchiveRestore size={16} />
                       </button>
                       <button onClick={() => deleteOption(o.id)} style={{ background: "none", border: "none", color: T.coral, cursor: "pointer" }} aria-label={`Supprimer ${o.nom}`}>
@@ -846,6 +1108,92 @@ export default function Virage27() {
                 ))}
               </div>
             )}
+
+            {doneOptions.length > 0 && (
+              <div style={{ marginTop: 28 }}>
+                <p style={{ fontSize: 13, color: T.sage, marginBottom: 10 }}>Réalisées ({doneOptions.length})</p>
+                {doneOptions.map((o) => (
+                  <div key={o.id} className="v27-card" style={{ padding: 14, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, borderColor: T.sage }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                      {o.lieu && <div style={{ fontSize: 11, color: T.teal, marginTop: 1 }}>{o.lieu}</div>}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => setStatus(o.id, "active")} style={{ background: "none", border: "none", color: T.muted, cursor: "pointer" }} aria-label={`Remettre ${o.nom} en actif`}>
+                        <RotateCcw size={16} />
+                      </button>
+                      <button onClick={() => deleteOption(o.id)} style={{ background: "none", border: "none", color: T.coral, cursor: "pointer" }} aria-label={`Supprimer ${o.nom}`}>
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {abortedOptions.length > 0 && (
+              <div style={{ marginTop: 28 }}>
+                <p style={{ fontSize: 13, color: T.coral, marginBottom: 10 }}>Idées avortées ({abortedOptions.length})</p>
+                {abortedOptions.map((o) => (
+                  <div key={o.id} className="v27-card" style={{ padding: 14, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, borderColor: T.coral }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                      {o.lieu && <div style={{ fontSize: 11, color: T.teal, marginTop: 1 }}>{o.lieu}</div>}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => setStatus(o.id, "active")} style={{ background: "none", border: "none", color: T.muted, cursor: "pointer" }} aria-label={`Remettre ${o.nom} en actif`}>
+                        <RotateCcw size={16} />
+                      </button>
+                      <button onClick={() => deleteOption(o.id)} style={{ background: "none", border: "none", color: T.coral, cursor: "pointer" }} aria-label={`Supprimer ${o.nom}`}>
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "reminders" && (
+          <div>
+            <div style={{ padding: "10px 12px", background: T.panel2, border: `1px solid ${T.line}`, borderRadius: 6, fontSize: 12, color: T.muted, marginBottom: 16, display: "flex", gap: 8 }}>
+              <Bell size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span>Les dates butoires (inscription, acompte...) ajoutées sur chaque option, toutes réunies ici et triées par date.</span>
+            </div>
+            {allReminders.length === 0 && (
+              <p style={{ color: T.muted, fontSize: 14 }}>Aucun rappel pour l'instant — ajoute-en un depuis la fiche d'une option, dans l'onglet "Ajouter".</p>
+            )}
+            {allReminders.map((r) => {
+              const d = parseDate(r.date);
+              const overdue = !r.done && d && d.getTime() < today.getTime();
+              const soon = !r.done && !overdue && d && d.getTime() <= addMonths(today, 1).getTime();
+              return (
+                <div key={r.id} className="v27-card" style={{ padding: 14, marginBottom: 10, display: "flex", alignItems: "center", gap: 12, opacity: r.done ? 0.6 : 1 }}>
+                  <input
+                    type="checkbox"
+                    checked={r.done}
+                    onChange={() => toggleReminder(r.optionId, r.id)}
+                    style={{ width: 18, height: 18, accentColor: T.amber, flexShrink: 0 }}
+                    aria-label={`Marquer "${r.label}" comme fait`}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, textDecoration: r.done ? "line-through" : "none" }}>{r.label}</div>
+                    <div style={{ fontSize: 11, color: T.teal, marginTop: 1 }}>{r.optionName}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                      <span style={{ fontSize: 11, color: T.muted }}>{formatDateShort(r.date)}</span>
+                      {overdue && (
+                        <span style={{ fontSize: 9, color: T.coral, border: `1px solid ${T.coral}`, borderRadius: 999, padding: "0 6px" }}>en retard</span>
+                      )}
+                      {soon && <span style={{ fontSize: 9, color: T.amber, border: `1px solid ${T.amber}`, borderRadius: 999, padding: "0 6px" }}>bientôt</span>}
+                    </div>
+                  </div>
+                  <button onClick={() => deleteReminder(r.optionId, r.id)} style={{ background: "none", border: "none", color: T.coral, cursor: "pointer", flexShrink: 0 }} aria-label={`Supprimer le rappel ${r.label}`}>
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 
