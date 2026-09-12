@@ -239,19 +239,22 @@ function Tab({ active, onClick, icon: Icon, children }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 6,
-        padding: "10px 4px",
-        background: "transparent",
+        justifyContent: "center",
+        gap: 3,
+        padding: "9px 2px",
+        background: active ? "rgba(224, 149, 75, 0.16)" : "transparent",
         border: "none",
-        borderBottom: active ? `2px solid ${T.amber}` : `2px solid transparent`,
-        color: active ? T.text : T.faint,
+        borderRadius: 16,
+        color: active ? T.amber : "rgba(237, 237, 227, 0.55)",
         fontFamily: "'IBM Plex Sans', sans-serif",
-        fontSize: 11,
+        fontSize: 10,
+        fontWeight: active ? 600 : 400,
         cursor: "pointer",
-        transition: "color 0.15s",
+        transition: "background 0.2s ease, color 0.2s ease",
+        WebkitTapHighlightColor: "transparent",
       }}
     >
-      <Icon size={17} strokeWidth={1.75} />
+      <Icon size={18} strokeWidth={active ? 2 : 1.75} />
       {children}
     </button>
   );
@@ -626,18 +629,7 @@ export default function Virage27() {
         </div>
       )}
 
-      {/* tabs */}
-      <div style={{ display: "flex", borderBottom: `1px solid ${T.line}`, margin: "0 4px" }}>
-        <Tab active={tab === "add"} onClick={() => setTab("add")} icon={Plus}>Ajouter</Tab>
-        <Tab active={tab === "research"} onClick={() => setTab("research")} icon={Search}>Recherche</Tab>
-        <Tab active={tab === "plan"} onClick={() => setTab("plan")} icon={ListOrdered}>Classement</Tab>
-        <Tab active={tab === "reminders"} onClick={() => setTab("reminders")} icon={Bell}>
-          Rappels{upcomingReminderCount > 0 ? ` (${upcomingReminderCount})` : ""}
-        </Tab>
-        <Tab active={tab === "backup"} onClick={() => setTab("backup")} icon={Save}>Sauvegarde</Tab>
-      </div>
-
-      <div style={{ padding: "20px" }}>
+      <div style={{ padding: "20px 20px 110px" }}>
         {tab === "add" && (
           <div>
             {editingId && (
@@ -1267,6 +1259,35 @@ export default function Virage27() {
           </div>
         )}
       </div>
+
+      <nav
+        style={{
+          position: "fixed",
+          left: "50%",
+          bottom: "calc(14px + env(safe-area-inset-bottom, 0px))",
+          transform: "translateX(-50%)",
+          width: "calc(100% - 28px)",
+          maxWidth: 452,
+          display: "flex",
+          gap: 2,
+          padding: 6,
+          borderRadius: 26,
+          background: "rgba(18, 49, 56, 0.62)",
+          backdropFilter: "blur(24px) saturate(180%)",
+          WebkitBackdropFilter: "blur(24px) saturate(180%)",
+          border: "1px solid rgba(255, 255, 255, 0.09)",
+          boxShadow: "0 12px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
+          zIndex: 50,
+        }}
+      >
+        <Tab active={tab === "add"} onClick={() => setTab("add")} icon={Plus}>Ajouter</Tab>
+        <Tab active={tab === "research"} onClick={() => setTab("research")} icon={Search}>Recherche</Tab>
+        <Tab active={tab === "plan"} onClick={() => setTab("plan")} icon={ListOrdered}>Classement</Tab>
+        <Tab active={tab === "reminders"} onClick={() => setTab("reminders")} icon={Bell}>
+          Rappels{upcomingReminderCount > 0 ? ` (${upcomingReminderCount})` : ""}
+        </Tab>
+        <Tab active={tab === "backup"} onClick={() => setTab("backup")} icon={Save}>Sauvegarde</Tab>
+      </nav>
     </div>
   );
 }
