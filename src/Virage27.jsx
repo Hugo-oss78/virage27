@@ -798,6 +798,16 @@ export default function Virage27() {
         .v27-card { background: ${T.panel}; border: 1px solid ${T.line}; border-radius: 8px; }
         input[type=range]::-webkit-slider-thumb { cursor: pointer; }
         ::selection { background: ${T.amber}; color: ${T.bg}; }
+        .v27-tabbar {
+          /* navigateur classique : on remonte pour dégager la barre d'adresse + le badge Netlify */
+          bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+        }
+        @media (display-mode: standalone) {
+          .v27-tabbar {
+            /* app installée : pas de barre d'adresse, juste le badge Netlify à dégager */
+            bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+          }
+        }
       `}</style>
 
       {/* header / cover */}
@@ -1519,10 +1529,10 @@ export default function Virage27() {
       </div>
 
       <nav
+        className="v27-tabbar"
         style={{
           position: "fixed",
           left: "50%",
-          bottom: "calc(64px + env(safe-area-inset-bottom, 0px))",
           transform: "translateX(-50%)",
           width: "calc(100% - 28px)",
           maxWidth: 452,
