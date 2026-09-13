@@ -707,7 +707,7 @@ export default function Virage27() {
         </div>
       )}
 
-      <div style={{ padding: "20px 20px 110px" }}>
+      <div style={{ padding: "20px 20px 160px" }}>
         {tab === "add" && (
           <div>
             {editingId && (
@@ -1373,7 +1373,7 @@ export default function Virage27() {
         style={{
           position: "fixed",
           left: "50%",
-          bottom: "calc(14px + env(safe-area-inset-bottom, 0px))",
+          bottom: "calc(64px + env(safe-area-inset-bottom, 0px))",
           transform: "translateX(-50%)",
           width: "calc(100% - 28px)",
           maxWidth: 452,
