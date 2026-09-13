@@ -10,3 +10,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     </PasswordGate>
   </React.StrictMode>
 );
+
+// nécessaire pour que Chrome/Android propose "Installer l'application"
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
