@@ -20,6 +20,8 @@ import {
   CalendarX,
   CalendarClock,
   RotateCcw,
+  CalendarPlus,
+  Download,
 } from "lucide-react";
 
 // ---------- design tokens ----------
@@ -165,6 +167,72 @@ function formatEuro(v) {
   const n = Number(v);
   if (!v || Number.isNaN(n)) return v || "—";
   return n.toLocaleString("fr-FR") + " €";
+}
+
+// ---------- export calendrier (.ics) ----------
+function icsEscape(text) {
+  return String(text || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\n/g, "\\n");
+}
+
+function icsDateFromStr(dateStr) {
+  return (dateStr || "").replace(/-/g, "");
+}
+
+function icsDatePlusOneDay(yyyymmdd) {
+  const y = Number(yyyymmdd.slice(0, 4));
+  const m = Number(yyyymmdd.slice(4, 6)) - 1;
+  const d = Number(yyyymmdd.slice(6, 8));
+  const dt = new Date(Date.UTC(y, m, d));
+  dt.setUTCDate(dt.getUTCDate() + 1);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(dt.getUTCDate())}`;
+}
+
+// événement d'une journée entière (on ne connaît qu'une date, pas d'heure précise)
+function buildICS(events) {
+  const dtstamp = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Virage27//FR", "CALSCALE:GREGORIAN"];
+  events.forEach((ev) => {
+    const start = icsDateFromStr(ev.dateStr);
+    if (!start) return;
+    const end = icsDatePlusOneDay(start);
+    lines.push("BEGIN:VEVENT");
+    lines.push(`UID:${ev.uid}@virage27`);
+    lines.push(`DTSTAMP:${dtstamp}`);
+    lines.push(`DTSTART;VALUE=DATE:${start}`);
+    lines.push(`DTEND;VALUE=DATE:${end}`);
+    lines.push(`SUMMARY:${icsEscape(ev.summary)}`);
+    if (ev.description) lines.push(`DESCRIPTION:${icsEscape(ev.description)}`);
+    lines.push("END:VEVENT");
+  });
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n");
+}
+
+function downloadICS(filename, icsContent) {
+  const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function slugify(text) {
+  return String(text || "rappel")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40) || "rappel";
 }
 
 function researchPrompt(opt) {
@@ -479,6 +547,16 @@ export default function Virage27() {
     const next = options.map((o) => (o.id === optionId ? { ...o, reminders: (o.reminders || []).filter((r) => r.id !== reminderId) } : o));
     setOptions(next);
     persist(next, weights);
+  }
+
+  function exportReminderToCalendar(r) {
+    const ics = buildICS([{ uid: r.id, dateStr: r.date, summary: r.label, description: `Virage 27 — ${r.optionName}` }]);
+    downloadICS(`${slugify(r.label)}.ics`, ics);
+  }
+
+  function exportAllRemindersToCalendar() {
+    const events = allReminders.map((r) => ({ uid: r.id, dateStr: r.date, summary: r.label, description: `Virage 27 — ${r.optionName}` }));
+    downloadICS("rappels-virage27.ics", buildICS(events));
   }
 
   function updateWeight(key, val) {
@@ -1151,10 +1229,36 @@ export default function Virage27() {
           <div>
             <div style={{ padding: "10px 12px", background: T.panel2, border: `1px solid ${T.line}`, borderRadius: 6, fontSize: 12, color: T.muted, marginBottom: 16, display: "flex", gap: 8 }}>
               <Bell size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
-              <span>Les dates butoires (inscription, acompte...) ajoutées sur chaque option, toutes réunies ici et triées par date.</span>
+              <span>
+                Les dates butoires (inscription, acompte...) ajoutées sur chaque option, toutes réunies ici et triées par date. Le
+                bouton calendrier télécharge un fichier .ics : ouvre-le ensuite pour l'ajouter à Calendrier (iPhone) ou Google
+                Calendar (Android).
+              </span>
             </div>
             {allReminders.length === 0 && (
               <p style={{ color: T.muted, fontSize: 14 }}>Aucun rappel pour l'instant — ajoute-en un depuis la fiche d'une option, dans l'onglet "Ajouter".</p>
+            )}
+            {allReminders.length > 0 && (
+              <button
+                onClick={exportAllRemindersToCalendar}
+                style={{
+                  width: "100%",
+                  background: "transparent",
+                  border: `1px solid ${T.teal}`,
+                  color: T.teal,
+                  borderRadius: 6,
+                  padding: "10px 16px",
+                  fontSize: 13,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  marginBottom: 16,
+                }}
+              >
+                <Download size={14} /> Exporter tous les rappels (.ics)
+              </button>
             )}
             {allReminders.map((r) => {
               const d = parseDate(r.date);
@@ -1180,9 +1284,14 @@ export default function Virage27() {
                       {soon && <span style={{ fontSize: 9, color: T.amber, border: `1px solid ${T.amber}`, borderRadius: 999, padding: "0 6px" }}>bientôt</span>}
                     </div>
                   </div>
-                  <button onClick={() => deleteReminder(r.optionId, r.id)} style={{ background: "none", border: "none", color: T.coral, cursor: "pointer", flexShrink: 0 }} aria-label={`Supprimer le rappel ${r.label}`}>
-                    <Trash2 size={16} />
-                  </button>
+                  <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
+                    <button onClick={() => exportReminderToCalendar(r)} style={{ background: "none", border: "none", color: T.teal, cursor: "pointer" }} aria-label={`Ajouter ${r.label} au calendrier`}>
+                      <CalendarPlus size={16} />
+                    </button>
+                    <button onClick={() => deleteReminder(r.optionId, r.id)} style={{ background: "none", border: "none", color: T.coral, cursor: "pointer" }} aria-label={`Supprimer le rappel ${r.label}`}>
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               );
             })}
