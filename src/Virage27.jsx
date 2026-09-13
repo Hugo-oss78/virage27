@@ -86,29 +86,73 @@ const emptyForm = {
 
 const emptyResearch = { resume: "", couts: "", debouches: "", points_attention: "", sources: "" };
 
-// Un seul objectif confirmé pour amorcer le carnet : le reste des options
-// (retour au métier, autres pistes) reste à ajouter par Babou elle-même.
+// Options réelles de Babou, remplies par sa famille pour amorcer le carnet.
 const seedOptions = [
   {
     id: "seed-monitorat-bali",
-    categorie: "job",
+    categorie: "formation",
     nom: "Monitorat de plongée",
     lieu: "Bali, Indonésie",
     objectif:
       "Passer le monitorat (dive master / instructeur) après le dive master déjà obtenu lors du précédent congé sans solde et la plongée refaite récemment en Indonésie.",
-    dateDebut: "",
-    debutOffset: 0,
-    dureeMois: 3,
+    dateDebut: "2027-03-13",
+    debutOffset: 6,
+    dureeMois: 1,
     cout: "",
     debouches: "",
     notes: "Coût, durée exacte et centre à confirmer — à compléter.",
-    scores: { pertinence: 3, financiere: 3, emotionnelle: 3, revenus: 3 },
+    scores: { pertinence: 4, financiere: 3, emotionnelle: 5, revenus: 2 },
     research: null,
     status: "active",
-    createdAt: Date.now(),
+    createdAt: 1789247916616,
     reminders: [],
   },
+  {
+    id: "gr30ajg6",
+    categorie: "job",
+    nom: "Ergothérapeute Présence Verte ",
+    lieu: "Montpellier",
+    objectif: "Reprise ",
+    dateDebut: "2026-09-21",
+    debutOffset: 0,
+    dureeMois: 4,
+    cout: "",
+    debouches: "",
+    notes: "",
+    scores: { pertinence: 3, financiere: 4, emotionnelle: 2, revenus: 3 },
+    reminders: [
+      {
+        id: "y2d78ytb",
+        label: "Retrouver mail/papier condition de reprise suite congé sans soldée",
+        date: "2026-09-17",
+        done: false,
+      },
+    ],
+    research: null,
+    status: "active",
+    createdAt: 1789248119575,
+  },
+  {
+    id: "qsg3ovxc",
+    categorie: "voyage",
+    nom: "Congé sans solde ",
+    lieu: "Asie",
+    objectif: "Voyager, Se former, s'ouvrir au monde ",
+    dateDebut: "2026-02-05",
+    debutOffset: 0,
+    dureeMois: 7,
+    cout: "8000€",
+    debouches: "",
+    notes: "",
+    scores: { pertinence: 5, financiere: 3, emotionnelle: 5, revenus: 1 },
+    reminders: [],
+    research: null,
+    status: "done",
+    createdAt: 1789282087985,
+  },
 ];
+
+const seedWeights = { pertinence: 70, financiere: 50, emotionnelle: 25, revenus: 25 };
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -436,7 +480,7 @@ export default function Virage27() {
   });
   const [weights, setWeights] = useState(() => {
     const saved = loadFromLocalStorage();
-    return saved ? saved.weights || { pertinence: 25, financiere: 25, emotionnelle: 25, revenus: 25 } : { pertinence: 25, financiere: 25, emotionnelle: 25, revenus: 25 };
+    return saved ? saved.weights || seedWeights : seedWeights;
   });
   const [tab, setTab] = useState("add");
   const [form, setForm] = useState(emptyForm);
