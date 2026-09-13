@@ -22,6 +22,9 @@ import {
   RotateCcw,
   CalendarPlus,
   Download,
+  GraduationCap,
+  Plane,
+  Briefcase,
 } from "lucide-react";
 
 // ---------- design tokens ----------
@@ -50,13 +53,24 @@ const CRITERIA = [
 ];
 
 const STATUS_STYLE = {
-  active: { color: T.teal, label: null },
-  done: { color: T.sage, label: "réalisée" },
-  aborted: { color: T.coral, label: "non atteignable" },
-  archived: { color: T.faint, label: "archivée" },
+  active: { label: null, color: T.muted },
+  done: { label: "réalisée", color: T.sage },
+  aborted: { label: "non atteignable", color: T.coral },
+  archived: { label: "archivée", color: T.faint },
 };
 
+const CATEGORIES = {
+  formation: { label: "Formation", color: "#9B8AC4", icon: GraduationCap },
+  voyage: { label: "Voyage", color: "#5FA8D3", icon: Plane },
+  job: { label: "Job / Pro", color: "#C9A227", icon: Briefcase },
+};
+
+function categoryColor(o) {
+  return (o.categorie && CATEGORIES[o.categorie] && CATEGORIES[o.categorie].color) || T.faint;
+}
+
 const emptyForm = {
+  categorie: null,
   nom: "",
   lieu: "",
   objectif: "",
@@ -77,6 +91,7 @@ const emptyResearch = { resume: "", couts: "", debouches: "", points_attention: 
 const seedOptions = [
   {
     id: "seed-monitorat-bali",
+    categorie: "job",
     nom: "Monitorat de plongée",
     lieu: "Bali, Indonésie",
     objectif:
@@ -106,6 +121,7 @@ function migrateOption(o) {
     status: o.status || (o.archived ? "archived" : "active"),
     createdAt: o.createdAt || Date.now(),
     reminders: o.reminders || [],
+    categorie: o.categorie || null,
   };
 }
 
@@ -332,6 +348,66 @@ function ghostButtonStyle(color) {
   return { background: "none", border: "none", color, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, padding: 0 };
 }
 
+function CategoryTag({ categorie }) {
+  const cat = categorie && CATEGORIES[categorie];
+  if (!cat) return null;
+  const Icon = cat.icon;
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 3,
+        fontSize: 10,
+        color: cat.color,
+        border: `1px solid ${cat.color}`,
+        borderRadius: 999,
+        padding: "1px 7px 1px 5px",
+        flexShrink: 0,
+      }}
+    >
+      <Icon size={10} /> {cat.label}
+    </span>
+  );
+}
+
+function CategoryPicker({ value, onChange }) {
+  return (
+    <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+      {Object.entries(CATEGORIES).map(([key, cat]) => {
+        const Icon = cat.icon;
+        const active = value === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onChange(key)}
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 5,
+              padding: "10px 4px",
+              borderRadius: 10,
+              border: `1.5px solid ${active ? cat.color : T.line}`,
+              background: active ? `${cat.color}22` : T.panel2,
+              color: active ? cat.color : T.muted,
+              fontSize: 12,
+              fontWeight: active ? 600 : 400,
+              cursor: "pointer",
+              fontFamily: "'IBM Plex Sans', sans-serif",
+            }}
+          >
+            <Icon size={18} strokeWidth={active ? 2.25 : 1.75} />
+            {cat.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function loadFromLocalStorage() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -430,6 +506,7 @@ export default function Virage27() {
 
   function startEdit(opt) {
     setForm({
+      categorie: opt.categorie || null,
       nom: opt.nom,
       lieu: opt.lieu || "",
       objectif: opt.objectif,
@@ -458,6 +535,10 @@ export default function Virage27() {
   }
 
   function saveOption() {
+    if (!form.categorie) {
+      setErrorMsg("Choisis un type (formation / voyage / job) avant d'enregistrer.");
+      return;
+    }
     if (!form.nom.trim()) {
       setErrorMsg("Donne un nom à cette option avant d'enregistrer.");
       return;
@@ -470,6 +551,7 @@ export default function Virage27() {
         o.id === editingId
           ? {
               ...o,
+              categorie: form.categorie,
               nom: form.nom,
               lieu: form.lieu,
               objectif: form.objectif,
@@ -487,6 +569,7 @@ export default function Virage27() {
     } else {
       const newOpt = {
         id: uid(),
+        categorie: form.categorie,
         nom: form.nom,
         lieu: form.lieu,
         objectif: form.objectif,
@@ -718,6 +801,8 @@ export default function Virage27() {
                 </button>
               </div>
             )}
+            <p style={{ fontSize: 13, color: T.muted, marginBottom: 10 }}>C'est plutôt...</p>
+            <CategoryPicker value={form.categorie} onChange={(categorie) => setForm({ ...form, categorie })} />
             <Field label="Nom de l'option">
               <TextInput value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="ex : Monitorat plongée à Bali" />
             </Field>
@@ -841,7 +926,10 @@ export default function Virage27() {
                 {activeOptions.map((o) => (
                   <div key={o.id} className="v27-card" style={{ padding: 14, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                        <CategoryTag categorie={o.categorie} />
+                      </div>
                       {o.lieu && <div style={{ fontSize: 11, color: T.teal, marginTop: 1 }}>{o.lieu}</div>}
                       <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>
                         {formatEuro(o.cout)} · {formatDateShort(o.dateDebut) || `dans ${o.debutOffset} mois`} · {o.dureeMois} mois
@@ -886,7 +974,10 @@ export default function Virage27() {
                 <div key={o.id} className="v27-card" style={{ padding: 16, marginBottom: 14 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 15 }}>{o.nom}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ fontWeight: 600, fontSize: 15 }}>{o.nom}</div>
+                        <CategoryTag categorie={o.categorie} />
+                      </div>
                       {o.lieu && <div style={{ fontSize: 11, color: T.teal, marginTop: 1 }}>{o.lieu}</div>}
                     </div>
                     <button
@@ -993,7 +1084,10 @@ export default function Virage27() {
                   const overdueDays = daysBetween(getEndDate(o), today);
                   return (
                     <div key={o.id} className="v27-card" style={{ padding: 14, marginBottom: 10, border: `1px solid ${T.amber}` }}>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                        <CategoryTag categorie={o.categorie} />
+                      </div>
                       <div style={{ fontSize: 12, color: T.muted, marginTop: 2, marginBottom: 10 }}>
                         Échéance passée depuis {overdueDays} jour{overdueDays > 1 ? "s" : ""} ({formatDateObj(getEndDate(o))})
                       </div>
@@ -1074,8 +1168,9 @@ export default function Virage27() {
                   <div key={o.id} className="v27-card" style={{ padding: 14, marginBottom: 10, display: "flex", alignItems: "center", gap: 12 }}>
                     <div className="v27-title" style={{ fontSize: 20, color: i === 0 ? T.amber : T.faint, width: 24, textAlign: "center" }}>{i + 1}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                         <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                        <CategoryTag categorie={o.categorie} />
                         {!hasResearch(o) && (
                           <span
                             style={{
@@ -1127,8 +1222,9 @@ export default function Virage27() {
                       const style = STATUS_STYLE[o.status] || STATUS_STYLE.active;
                       return (
                         <div key={o.id} style={{ marginBottom: 14 }}>
-                          <div style={{ fontSize: 12, color: T.muted, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ fontSize: 12, color: T.muted, marginBottom: 4, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                             <span style={{ opacity: o.status === "active" ? 1 : 0.6 }}>{o.nom}</span>
+                            <CategoryTag categorie={o.categorie} />
                             {style.label && (
                               <span style={{ fontSize: 9, color: style.color, border: `1px solid ${style.color}`, borderRadius: 999, padding: "0 6px" }}>{style.label}</span>
                             )}
@@ -1140,8 +1236,8 @@ export default function Virage27() {
                                 left: `${leftPct}%`,
                                 width: `${widthPct}%`,
                                 height: "100%",
-                                background: style.color,
-                                opacity: o.status === "active" ? 1 : 0.55,
+                                background: categoryColor(o),
+                                opacity: o.status === "active" ? 1 : 0.45,
                                 borderRadius: 4,
                               }}
                             />
@@ -1163,7 +1259,10 @@ export default function Virage27() {
                 {archivedOptions.map((o) => (
                   <div key={o.id} className="v27-card" style={{ padding: 14, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, opacity: 0.7 }}>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                        <CategoryTag categorie={o.categorie} />
+                      </div>
                       {o.lieu && <div style={{ fontSize: 11, color: T.teal, marginTop: 1 }}>{o.lieu}</div>}
                     </div>
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
@@ -1185,7 +1284,10 @@ export default function Virage27() {
                 {doneOptions.map((o) => (
                   <div key={o.id} className="v27-card" style={{ padding: 14, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, borderColor: T.sage }}>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                        <CategoryTag categorie={o.categorie} />
+                      </div>
                       {o.lieu && <div style={{ fontSize: 11, color: T.teal, marginTop: 1 }}>{o.lieu}</div>}
                     </div>
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
@@ -1207,7 +1309,10 @@ export default function Virage27() {
                 {abortedOptions.map((o) => (
                   <div key={o.id} className="v27-card" style={{ padding: 14, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, borderColor: T.coral }}>
                     <div>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{o.nom}</div>
+                        <CategoryTag categorie={o.categorie} />
+                      </div>
                       {o.lieu && <div style={{ fontSize: 11, color: T.teal, marginTop: 1 }}>{o.lieu}</div>}
                     </div>
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
