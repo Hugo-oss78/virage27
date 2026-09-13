@@ -801,7 +801,7 @@ export default function Virage27() {
       `}</style>
 
       {/* header / cover */}
-      <div style={{ padding: "28px 20px 18px", position: "relative", overflow: "hidden" }}>
+      <div style={{ padding: "calc(28px + env(safe-area-inset-top, 0px)) 20px 18px", position: "relative", overflow: "hidden" }}>
         <svg width="100%" height="34" viewBox="0 0 400 34" style={{ position: "absolute", top: 0, left: 0, opacity: 0.35 }} preserveAspectRatio="none">
           <path d="M0 20 Q 50 4 100 20 T 200 20 T 300 20 T 400 20" fill="none" stroke={T.teal} strokeWidth="1.5" />
         </svg>
