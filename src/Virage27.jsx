@@ -2,30 +2,23 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   Plus,
   Trash2,
-  Search,
-  ListOrdered,
   Compass,
   ExternalLink,
-  AlertTriangle,
   Pencil,
   X,
   Check,
-  Save,
   Clipboard,
   ClipboardPaste,
   Archive,
   ArchiveRestore,
-  Bell,
   CalendarCheck,
   CalendarX,
   CalendarClock,
   RotateCcw,
   CalendarPlus,
   Download,
-  GraduationCap,
-  Plane,
-  Briefcase,
 } from "lucide-react";
+import { IconAdd, IconSearch, IconRank, IconBell, IconSave, IconFormation, IconVoyage, IconJob, IconAlert, IconReview } from "./Icons.jsx";
 
 // ---------- design tokens ----------
 export const T = {
@@ -60,9 +53,9 @@ const STATUS_STYLE = {
 };
 
 const CATEGORIES = {
-  formation: { label: "Formation", color: "#9B8AC4", icon: GraduationCap },
-  voyage: { label: "Voyage", color: "#5FA8D3", icon: Plane },
-  job: { label: "Job / Pro", color: "#C9A227", icon: Briefcase },
+  formation: { label: "Formation", color: "#9B8AC4", icon: IconFormation },
+  voyage: { label: "Voyage", color: "#5FA8D3", icon: IconVoyage },
+  job: { label: "Job / Pro", color: "#C9A227", icon: IconJob },
 };
 
 function categoryColor(o) {
@@ -378,7 +371,8 @@ function Tab({ active, onClick, icon: Icon, children }) {
         fontSize: 10,
         fontWeight: active ? 600 : 400,
         cursor: "pointer",
-        transition: "background 0.2s ease, color 0.2s ease",
+        transition: "background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease",
+        boxShadow: active ? "0 0 14px rgba(224, 149, 75, 0.45), inset 0 0 10px rgba(224, 149, 75, 0.12)" : "none",
         WebkitTapHighlightColor: "transparent",
       }}
     >
@@ -795,7 +789,13 @@ export default function Virage27() {
         * { box-sizing: border-box; }
         body { margin: 0; background: ${T.bg}; }
         .v27-title { font-family: 'Fraunces', serif; }
-        .v27-card { background: ${T.panel}; border: 1px solid ${T.line}; border-radius: 8px; }
+        .v27-card {
+          background: ${T.panel};
+          border: 1px solid ${T.line};
+          border-radius: 8px;
+          box-shadow: 0 0 0 1px rgba(224, 149, 75, 0.04), 0 4px 18px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+          transition: box-shadow 0.2s ease;
+        }
         input[type=range]::-webkit-slider-thumb { cursor: pointer; }
         ::selection { background: ${T.amber}; color: ${T.bg}; }
         .v27-tabbar {
@@ -810,12 +810,27 @@ export default function Virage27() {
         }
       `}</style>
 
-      {/* header / cover */}
+      {/* header / cover — silhouettes montagne, île et plongée au-dessus de la vague */}
       <div style={{ padding: "calc(28px + env(safe-area-inset-top, 0px)) 20px 18px", position: "relative", overflow: "hidden" }}>
-        <svg width="100%" height="34" viewBox="0 0 400 34" style={{ position: "absolute", top: 0, left: 0, opacity: 0.35 }} preserveAspectRatio="none">
-          <path d="M0 20 Q 50 4 100 20 T 200 20 T 300 20 T 400 20" fill="none" stroke={T.teal} strokeWidth="1.5" />
+        <svg width="100%" height="58" viewBox="0 0 400 58" style={{ position: "absolute", top: 0, left: 0 }} preserveAspectRatio="none">
+          {/* montagnes */}
+          <path d="M-10 42 L28 14 L52 34 L78 8 L108 42" fill="none" stroke={T.teal} strokeWidth="1.4" opacity="0.28" />
+          {/* soleil */}
+          <circle cx="92" cy="14" r="4.5" fill="none" stroke={T.amber} strokeWidth="1.3" opacity="0.3" />
+          {/* île + palmier */}
+          <ellipse cx="238" cy="40" rx="20" ry="4.5" fill="none" stroke={T.teal} strokeWidth="1.3" opacity="0.28" />
+          <path d="M238 40 C 236 28 230 24 224 21" fill="none" stroke={T.teal} strokeWidth="1.3" opacity="0.3" />
+          <path d="M224 21 C 219 19 216 20 213 24 M224 21 C 220 17 220 14 222 10 M224 21 C 228 18 232 18 236 20" fill="none" stroke={T.teal} strokeWidth="1.1" opacity="0.3" />
+          {/* poisson */}
+          <path d="M132 48 C 140 43 152 43 159 48 C 152 53 140 53 132 48 Z" fill="none" stroke={T.amber} strokeWidth="1.2" opacity="0.32" />
+          <path d="M159 48 L166 44 L166 52 Z" fill="none" stroke={T.amber} strokeWidth="1.2" opacity="0.32" />
+          {/* plongeur */}
+          <circle cx="332" cy="26" r="4" fill="none" stroke={T.amber} strokeWidth="1.3" opacity="0.32" />
+          <path d="M332 30 L330 42 M332 33 L322 38 M332 33 L342 30 M330 42 L324 48 M330 42 L336 49" fill="none" stroke={T.amber} strokeWidth="1.2" opacity="0.32" />
+          {/* vague */}
+          <path d="M0 50 Q 50 34 100 50 T 200 50 T 300 50 T 400 50" fill="none" stroke={T.teal} strokeWidth="1.5" opacity="0.4" />
         </svg>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, marginTop: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, marginTop: 30 }}>
           <Compass size={20} color={T.amber} strokeWidth={1.5} />
           <span style={{ fontSize: 12, letterSpacing: 0.5, color: T.muted }}>Carnet de décision</span>
         </div>
@@ -830,7 +845,7 @@ export default function Virage27() {
       {saveStatus === "error" && (
         <div style={{ margin: "0 20px 12px", padding: "10px 12px", background: T.amberSoft, border: `1px solid ${T.coral}`, borderRadius: 6, fontSize: 12, color: T.text, display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-            <AlertTriangle size={14} color={T.coral} style={{ flexShrink: 0, marginTop: 1 }} />
+            <IconAlert size={14} color={T.coral} style={{ flexShrink: 0, marginTop: 1 }} />
             <span>
               La sauvegarde locale (navigateur) a échoué. Va dans l'onglet "Sauvegarde" pour copier tes données en sécurité avant de fermer.
             </span>
@@ -1016,7 +1031,7 @@ export default function Virage27() {
           <div>
             {activeOptions.length === 0 && <p style={{ color: T.muted, fontSize: 14 }}>Ajoute d'abord une option dans l'onglet "Ajouter".</p>}
             <div style={{ padding: "10px 12px", background: T.panel2, border: `1px solid ${T.line}`, borderRadius: 6, fontSize: 12, color: T.muted, marginBottom: 16, display: "flex", gap: 8 }}>
-              <AlertTriangle size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
+              <IconAlert size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
               <span>
                 Cette appli n'appelle aucune IA elle-même (pas de serveur = pas de clé API sécurisée). Pour chaque option : copie le prompt, colle-le dans
                 Claude ou ChatGPT, puis reviens coller la réponse ici. À vérifier ensuite auprès des organismes concernés avant toute décision engageante.
@@ -1132,7 +1147,7 @@ export default function Virage27() {
             {overdueOptions.length > 0 && (
               <div style={{ marginBottom: 20 }}>
                 <p style={{ fontSize: 13, color: T.amber, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-                  <AlertTriangle size={14} /> Échéance dépassée ({overdueOptions.length})
+                  <IconAlert size={14} /> Échéance dépassée ({overdueOptions.length})
                 </p>
                 {overdueOptions.map((o) => {
                   const overdueDays = daysBetween(getEndDate(o), today);
@@ -1218,8 +1233,21 @@ export default function Virage27() {
                 </div>
 
                 <p style={{ fontSize: 13, color: T.muted, marginBottom: 10 }}>Classement pondéré</p>
-                {ranked.map((o, i) => (
-                  <div key={o.id} className="v27-card" style={{ padding: 14, marginBottom: 10, display: "flex", alignItems: "center", gap: 12 }}>
+                {ranked.map((o, i) => {
+                  const catColor = categoryColor(o);
+                  return (
+                  <div
+                    key={o.id}
+                    className="v27-card"
+                    style={{
+                      padding: 14,
+                      marginBottom: 10,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      boxShadow: `0 0 24px ${catColor}3D, 0 0 0 1px ${catColor}26, 0 4px 18px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.03)`,
+                    }}
+                  >
                     <div className="v27-title" style={{ fontSize: 20, color: i === 0 ? T.amber : T.faint, width: 24, textAlign: "center" }}>{i + 1}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -1228,20 +1256,30 @@ export default function Virage27() {
                         {!hasResearch(o) && (
                           <span
                             style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 3,
                               fontSize: 10,
                               color: T.amber,
                               border: `1px solid ${T.amber}`,
                               borderRadius: 999,
-                              padding: "1px 7px",
+                              padding: "1px 7px 1px 5px",
                               flexShrink: 0,
+                              boxShadow: "0 0 8px rgba(224, 149, 75, 0.5)",
+                              textShadow: "0 0 6px rgba(224, 149, 75, 0.7)",
                             }}
                           >
-                            à vérifier
+                            <IconReview size={9} /> à revoir
                           </span>
                         )}
                       </div>
                       {o.lieu && <div style={{ fontSize: 11, color: T.teal, marginTop: 1 }}>{o.lieu}</div>}
-                      <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>Score {weightedScore(o).toFixed(1)}/5</div>
+                      <div style={{ fontSize: 11, color: T.muted, marginTop: 2 }}>
+                        Score{" "}
+                        <span style={{ color: T.amber, fontWeight: 600, textShadow: "0 0 10px rgba(224, 149, 75, 0.55)" }}>
+                          {weightedScore(o).toFixed(1)}/5
+                        </span>
+                      </div>
                     </div>
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                       <button onClick={() => startEdit(o)} style={{ background: "none", border: "none", color: T.teal, cursor: "pointer" }} aria-label={`Modifier ${o.nom}`}>
@@ -1255,7 +1293,8 @@ export default function Virage27() {
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </>
             )}
 
@@ -1387,7 +1426,7 @@ export default function Virage27() {
         {tab === "reminders" && (
           <div>
             <div style={{ padding: "10px 12px", background: T.panel2, border: `1px solid ${T.line}`, borderRadius: 6, fontSize: 12, color: T.muted, marginBottom: 16, display: "flex", gap: 8 }}>
-              <Bell size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
+              <IconBell size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
               <span>
                 Les dates butoires (inscription, acompte...) ajoutées sur chaque option, toutes réunies ici et triées par date. Le
                 bouton calendrier télécharge un fichier .ics : ouvre-le ensuite pour l'ajouter à Calendrier (iPhone) ou Google
@@ -1548,13 +1587,13 @@ export default function Virage27() {
           zIndex: 50,
         }}
       >
-        <Tab active={tab === "add"} onClick={() => setTab("add")} icon={Plus}>Ajouter</Tab>
-        <Tab active={tab === "research"} onClick={() => setTab("research")} icon={Search}>Recherche</Tab>
-        <Tab active={tab === "plan"} onClick={() => setTab("plan")} icon={ListOrdered}>Classement</Tab>
-        <Tab active={tab === "reminders"} onClick={() => setTab("reminders")} icon={Bell}>
+        <Tab active={tab === "add"} onClick={() => setTab("add")} icon={IconAdd}>Ajouter</Tab>
+        <Tab active={tab === "research"} onClick={() => setTab("research")} icon={IconSearch}>Recherche</Tab>
+        <Tab active={tab === "plan"} onClick={() => setTab("plan")} icon={IconRank}>Classement</Tab>
+        <Tab active={tab === "reminders"} onClick={() => setTab("reminders")} icon={IconBell}>
           Rappels{upcomingReminderCount > 0 ? ` (${upcomingReminderCount})` : ""}
         </Tab>
-        <Tab active={tab === "backup"} onClick={() => setTab("backup")} icon={Save}>Sauvegarde</Tab>
+        <Tab active={tab === "backup"} onClick={() => setTab("backup")} icon={IconSave}>Sauvegarde</Tab>
       </nav>
     </div>
   );
