@@ -799,13 +799,13 @@ export default function Virage27() {
         input[type=range]::-webkit-slider-thumb { cursor: pointer; }
         ::selection { background: ${T.amber}; color: ${T.bg}; }
         .v27-tabbar {
-          /* navigateur classique : on remonte pour dégager la barre d'adresse + le badge Netlify */
-          bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+          /* navigateur classique : un peu de marge pour la barre d'adresse du téléphone */
+          bottom: calc(20px + env(safe-area-inset-bottom, 0px));
         }
         @media (display-mode: standalone) {
           .v27-tabbar {
-            /* app installée : pas de barre d'adresse, juste le badge Netlify à dégager */
-            bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+            /* app installée : pas de barre d'adresse à dégager */
+            bottom: calc(14px + env(safe-area-inset-bottom, 0px));
           }
         }
       `}</style>
